@@ -21,7 +21,9 @@ Commands:
   setup-server       Prepare the restricted media user on the server
   new <ProjectName>  Create a new project from the bank template
   push [Project]     Push project(s) from source to server
-  pull [Project]     Pull project(s) on the remote
+  pull [Project] [--originals]
+                     Pull project(s). Default is proxies only.
+                     --originals pulls the full Bins (raws + proxies).
   delete <Project>   Delete a project from the client (prompts to sync first)
   test               Built-in self-test (config, bank, SSH)
   help               Show this help
@@ -277,7 +279,17 @@ cmd_push() {
 }
 
 cmd_pull() {
-  local project="${1:-}"
+  local project=""
+  local originals=0
+  # Parse args: pull [Project] [--originals]
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --originals) originals=1 ;;
+      *) project="$1" ;;
+    esac
+    shift
+  done
+
   if [[ -z "${SOURCE_ROOT:-}" || -z "${REMOTE_HOST:-}" || -z "${REMOTE_ROOT:-}" ]]; then
     echo "Config incomplete. Run setup first." >&2
     exit 1
@@ -298,7 +310,12 @@ cmd_pull() {
   local dst="${SOURCE_ROOT}/${project}"
   echo "Pulling $project ← $src"
   mkdir -p "$dst"
-  rsync -av --delete "${BINS_FILTER[@]}" "$src/" "$dst/"
+  if [[ $originals -eq 1 ]]; then
+    echo "(including full Bins / originals)"
+    rsync -av --delete --include='Bins/***' --exclude='*' "$src/" "$dst/"
+  else
+    rsync -av --delete "${BINS_FILTER[@]}" "$src/" "$dst/"
+  fi
   rsync -av --delete --include='Assists/***' --exclude='*' "$src/" "$dst/"
   echo "Pull done."
 }
@@ -336,7 +353,7 @@ case "${1:-}" in
   setup-server) cmd_setup_server ;;
   new)          cmd_new "${2:-}" ;;
   push)         cmd_push "${2:-}" ;;
-  pull)         cmd_pull "${2:-}" ;;
+  pull)         shift; cmd_pull "$@" ;;
   delete)       cmd_delete "${2:-}" ;;
   test)         cmd_test ;;
   help|""|-h|--help) usage ;;
