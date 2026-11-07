@@ -17,7 +17,8 @@ usage() {
 Usage: resolve-sync <command> [args]
 
 Commands:
-  setup              Interactive setup and SSH key install
+  setup              Interactive client setup and SSH key install
+  setup-server       Prepare the restricted media user on the server
   new <ProjectName>  Create a new project from the bank template
   push [Project]     Push project(s) from source to server
   pull [Project]     Pull project(s) on the remote
@@ -27,7 +28,10 @@ EOF
 
 case "${1:-}" in
   setup)
-    echo "TODO: interactive setup"
+    echo "TODO: interactive client setup"
+    ;;
+  setup-server)
+    echo "TODO: create restricted media user, set permissions, prepare authorized_keys"
     ;;
   new)
     echo "TODO: create project ${2:-<name>} from bank/"
