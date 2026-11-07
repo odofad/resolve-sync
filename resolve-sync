@@ -3,7 +3,18 @@
 
 set -euo pipefail
 
-CONFIG="${HOME}/.resolve-sync.conf"
+# Config: prefer XDG, fall back to legacy location
+XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+CONFIG_NEW="${XDG_CONFIG_HOME}/resolve-sync/config"
+CONFIG_OLD="${HOME}/.resolve-sync.conf"
+if [[ -f "$CONFIG_NEW" ]]; then
+  CONFIG="$CONFIG_NEW"
+elif [[ -f "$CONFIG_OLD" ]]; then
+  CONFIG="$CONFIG_OLD"
+else
+  CONFIG="$CONFIG_NEW"
+fi
+
 # Prefer packaged location, fall back to next to the script (dev)
 if [[ -d /usr/share/resolve-sync/bank ]]; then
   BANK_DIR=/usr/share/resolve-sync/bank
@@ -34,7 +45,7 @@ USAGE
 
 COMMANDS
   setup
-      Interactive client setup. Writes ~/.resolve-sync.conf and optionally
+      Interactive client setup. Writes config and optionally
       installs an SSH key on the server.
 
   setup-server
@@ -63,7 +74,8 @@ COMMANDS
       Show this manual.
 
 CONFIG
-  ~/.resolve-sync.conf (created by setup)
+  Preferred: ~/.config/resolve-sync/config
+  Legacy:    ~/.resolve-sync.conf (still read if present)
 
     SOURCE_ROOT=/path/to/local/MasterFolder
     REMOTE_ROOT=/path/to/server/media
@@ -179,6 +191,8 @@ cmd_setup() {
   read -rp "Source root (local MasterFolder): " source_root
   read -rp "Remote root (server media folder): " remote_root
 
+  # Always write to the new XDG location
+  CONFIG="$CONFIG_NEW"
   mkdir -p "$(dirname "$CONFIG")"
   cat > "$CONFIG" <<EOF
 SOURCE_ROOT=${source_root}
