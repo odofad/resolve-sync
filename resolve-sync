@@ -71,6 +71,10 @@ COMMANDS
   delete <Project>
       Delete a project from the client only. Prompts to sync back first.
 
+  update
+      Update the script. On Linux (deb) prints apt instructions.
+      On macOS downloads the latest release and reinstalls.
+
   test
       Self-test: config, paths, bank template, SSH.
 
@@ -181,6 +185,54 @@ cmd_test() {
     echo "Some checks failed."
     return 1
   fi
+}
+
+cmd_update() {
+  local script_path
+  script_path=$(command -v resolve-sync 2>/dev/null || echo "${BASH_SOURCE[0]}")
+
+  # Deb install lives in /usr/bin
+  if [[ "$script_path" == /usr/bin/resolve-sync ]]; then
+    echo "Installed via deb/PPA."
+    echo "Update with:"
+    echo "  sudo apt update && sudo apt upgrade resolve-sync"
+    return 0
+  fi
+
+  # macOS /usr/local install
+  if [[ "$(uname)" == "Darwin" ]] || [[ "$script_path" == /usr/local/bin/resolve-sync ]]; then
+    echo "Checking GitHub for latest release..."
+    local latest
+    latest=$(curl -fsSL https://api.github.com/repos/odofad/resolve-sync/releases/latest | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4)
+    if [[ -z "$latest" ]]; then
+      echo "Could not determine latest release." >&2
+      exit 1
+    fi
+    echo "Latest: $latest (current: $VERSION)"
+    if [[ "$latest" == "v$VERSION" || "$latest" == "$VERSION" ]]; then
+      echo "Already up to date."
+      return 0
+    fi
+    local tmp
+    tmp=$(mktemp -d)
+    echo "Downloading $latest..."
+    curl -fsSL -o "$tmp/resolve-sync.zip" "https://github.com/odofad/resolve-sync/archive/refs/tags/${latest}.zip"
+    unzip -q -o "$tmp/resolve-sync.zip" -d "$tmp"
+    local srcdir
+    srcdir=$(find "$tmp" -maxdepth 1 -type d -name 'resolve-sync-*' | head -1)
+    if [[ ! -d "$srcdir" ]]; then
+      echo "Download failed." >&2
+      exit 1
+    fi
+    echo "Installing..."
+    (cd "$srcdir" && PREFIX=/usr/local ./install-macos.sh)
+    rm -rf "$tmp"
+    echo "Updated to $latest."
+    return 0
+  fi
+
+  echo "Unknown install method. Update manually." >&2
+  return 1
 }
 
 cmd_setup() {
@@ -410,6 +462,7 @@ case "${1:-}" in
   push)         cmd_push "${2:-}" ;;
   pull)         shift; cmd_pull "$@" ;;
   delete)       cmd_delete "${2:-}" ;;
+  update)       cmd_update ;;
   test)         cmd_test ;;
   help|""|-h|--help) usage ;;
   *)
