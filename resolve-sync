@@ -267,12 +267,12 @@ cmd_pull() {
   local host
   host=$(get_working_host)
   if [[ -z "$project" ]]; then
-    echo "Projects on source ($host:$SOURCE_ROOT):"
-    ssh ${SSH_OPTS:-} "$host" "ls -1 '$SOURCE_ROOT'" 2>/dev/null || echo "(could not list)"
+    echo "Projects on server ($host:$REMOTE_ROOT):"
+    ssh ${SSH_OPTS:-} "$host" "ls -1 '$REMOTE_ROOT'" 2>/dev/null || echo "(could not list)"
     return
   fi
-  local src="${host}:${SOURCE_ROOT}/${project}"
-  local dst="${REMOTE_ROOT}/${project}"
+  local src="${host}:${REMOTE_ROOT}/${project}"
+  local dst="${SOURCE_ROOT}/${project}"
   echo "Pulling $project ← $src"
   mkdir -p "$dst"
   rsync -av --delete "${BINS_FILTER[@]}" "$src/" "$dst/"
