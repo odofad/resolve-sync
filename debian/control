@@ -1,0 +1,14 @@
+Source: resolve-sync
+Section: utils
+Priority: optional
+Maintainer: wium <odofad@gmail.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Homepage: https://github.com/odofad/resolve-sync
+
+Package: resolve-sync
+Architecture: all
+Depends: ${misc:Depends}, rsync, openssh-client
+Description: Sync tool for DaVinci Resolve project mags
+ Simple rsync-based tool that pushes proxy-only Bins, bidirectional
+ Assists, and Timeline backups over SSH for remote Resolve workflows.
