@@ -20,6 +20,8 @@ fi
 # Prefer packaged location, fall back to next to the script (dev)
 if [[ -d /usr/share/resolve-sync/bank ]]; then
   BANK_DIR=/usr/share/resolve-sync/bank
+elif [[ -d /usr/local/share/resolve-sync/bank ]]; then
+  BANK_DIR=/usr/local/share/resolve-sync/bank
 else
   BANK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/bank"
 fi
