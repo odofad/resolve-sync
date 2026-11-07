@@ -1,0 +1,7 @@
+# resolve-sync configuration example
+# Copy to ~/.resolve-sync.conf and edit
+
+SOURCE_ROOT=/path/to/MasterFolder
+REMOTE_ROOT=/path/to/RemoteFolder
+REMOTE_HOST=user@server
+SSH_OPTS=-o BatchMode=yes
