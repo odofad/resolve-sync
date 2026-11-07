@@ -91,10 +91,11 @@ cmd_setup_server() {
   fi
 
   if ! id "$ruser" >/dev/null 2>&1; then
-    useradd -m -G "$group" -s /usr/sbin/nologin "$ruser" || useradd -m -G "$group" "$ruser"
-    echo "Created user $ruser"
+    useradd -m -G "$group" -s /bin/bash "$ruser"
+    echo "Created user $ruser (shell /bin/bash)"
   else
     usermod -aG "$group" "$ruser"
+    usermod -s /bin/bash "$ruser"
   fi
 
   for u in $users; do
@@ -125,6 +126,7 @@ cmd_setup_server() {
   echo "Prepared $home/.ssh/authorized_keys"
   echo "Server setup done. Add client public keys to authorized_keys."
   echo "Tip: set a temporary password with 'sudo passwd $ruser' so the first ssh-copy-id can succeed, then lock it with 'sudo passwd -l $ruser'."
+  echo "You can later restrict the account with ForceCommand or change the shell back to nologin once keys are installed."
 }
 
 cmd_new() {
