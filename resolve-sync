@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# resolve-sync — simple rsync tool for DaVinci Resolve project mags
+# Planning skeleton complete. Implementation next.
+
+set -euo pipefail
+
+CONFIG="${HOME}/.resolve-sync.conf"
+
+# Load config if present
+if [[ -f "$CONFIG" ]]; then
+  # shellcheck source=/dev/null
+  source "$CONFIG"
+fi
+
+usage() {
+  cat <<EOF
+Usage: resolve-sync <command> [args]
+
+Commands:
+  setup              Interactive setup and SSH key install
+  push [Project]     Push project(s) from source to server
+  pull [Project]     Pull project(s) on the remote
+  help               Show this help
+EOF
+}
+
+case "${1:-}" in
+  setup)
+    echo "TODO: interactive setup"
+    ;;
+  push)
+    echo "TODO: push ${2:-all}"
+    ;;
+  pull)
+    echo "TODO: pull ${2:-list}"
+    ;;
+  help|""|-h|--help)
+    usage
+    ;;
+  *)
+    echo "Unknown command: $1" >&2
+    usage
+    exit 1
+    ;;
+esac
