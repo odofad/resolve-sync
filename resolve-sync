@@ -27,6 +27,13 @@ Commands:
 EOF
 }
 
+# SSH options as array for safe expansion
+SSH_OPTS_ARRAY=()
+if [[ -n "${SSH_OPTS:-}" ]]; then
+  # shellcheck disable=SC2206
+  SSH_OPTS_ARRAY=($SSH_OPTS)
+fi
+
 # Try primary host, fall back to backup if set and primary fails
 get_working_host() {
   local host="${REMOTE_HOST:-}"
@@ -120,7 +127,7 @@ SOURCE_ROOT=${source_root}
 REMOTE_ROOT=${remote_root}
 REMOTE_HOST=${remote_host}
 REMOTE_HOST_BACKUP=${remote_host_backup}
-SSH_OPTS=-o BatchMode=yes
+SSH_OPTS="-o BatchMode=yes"
 EOF
   echo "Config written to $CONFIG"
 
@@ -268,7 +275,7 @@ cmd_pull() {
   host=$(get_working_host)
   if [[ -z "$project" ]]; then
     echo "Projects on server ($host:$REMOTE_ROOT):"
-    ssh ${SSH_OPTS:-} "$host" "ls -1 '$REMOTE_ROOT'" 2>/dev/null || echo "(could not list)"
+    ssh "${SSH_OPTS_ARRAY[@]}" "$host" "ls -1 '$REMOTE_ROOT'" 2>/dev/null || echo "(could not list)"
     return
   fi
   local src="${host}:${REMOTE_ROOT}/${project}"
