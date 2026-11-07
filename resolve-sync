@@ -4,7 +4,12 @@
 set -euo pipefail
 
 CONFIG="${HOME}/.resolve-sync.conf"
-BANK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/bank"
+# Prefer packaged location, fall back to next to the script (dev)
+if [[ -d /usr/share/resolve-sync/bank ]]; then
+  BANK_DIR=/usr/share/resolve-sync/bank
+else
+  BANK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/bank"
+fi
 
 # Load config if present
 if [[ -f "$CONFIG" ]]; then
