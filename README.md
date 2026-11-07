@@ -34,14 +34,14 @@ A `bank/` template is included. `resolve-sync new` copies it to start a new proj
 
 ## Install
 
-### Linux (deb / PPA)
+### Ubuntu (deb / PPA)
 ```bash
 sudo add-apt-repository ppa:odofad/stable
 sudo apt update
 sudo apt install resolve-sync
 ```
 
-### macOS (client only)
+### Other Linux / macOS
 ```bash
 curl -L -o resolve-sync.zip https://github.com/odofad/resolve-sync/archive/refs/tags/v0.2.0.zip
 unzip resolve-sync.zip
@@ -49,6 +49,7 @@ cd resolve-sync-0.2.0
 chmod +x install-macos.sh
 ./install-macos.sh
 ```
+On non-Ubuntu Linux you can also just copy the script and `bank/` folder anywhere on your PATH.
 
 ## Commands
 
@@ -108,8 +109,8 @@ If `REMOTE_HOST_BACKUP` is set, the script tries the primary host first, then fa
 
 ## Update
 
-- **Linux (deb):** `sudo apt update && sudo apt upgrade resolve-sync`
-- **macOS:** `resolve-sync update` (downloads the latest GitHub release and reinstalls)
+- **Ubuntu (deb):** `sudo apt update && sudo apt upgrade resolve-sync`
+- **macOS / other:** `resolve-sync update` (downloads the latest GitHub release and reinstalls)
 
 ## Decisions
 
