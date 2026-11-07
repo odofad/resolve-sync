@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # resolve-sync — simple rsync tool for DaVinci Resolve project mags
-# Planning skeleton complete. Implementation next.
 
 set -euo pipefail
 
 CONFIG="${HOME}/.resolve-sync.conf"
+BANK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/bank"
 
 # Load config if present
 if [[ -f "$CONFIG" ]]; then
@@ -26,25 +26,165 @@ Commands:
 EOF
 }
 
+cmd_setup() {
+  echo "=== resolve-sync client setup ==="
+  read -rp "Remote host (user@host): " remote_host
+  read -rp "Source root (local MasterFolder): " source_root
+  read -rp "Remote root (server media folder): " remote_root
+
+  mkdir -p "$(dirname "$CONFIG")"
+  cat > "$CONFIG" <<EOF
+SOURCE_ROOT=${source_root}
+REMOTE_ROOT=${remote_root}
+REMOTE_HOST=${remote_host}
+SSH_OPTS=-o BatchMode=yes
+EOF
+  echo "Config written to $CONFIG"
+
+  key="${HOME}/.ssh/id_ed25519"
+  if [[ ! -f "$key" ]]; then
+    ssh-keygen -t ed25519 -f "$key" -N ""
+  fi
+  echo "Public key:"
+  cat "${key}.pub"
+  echo
+  read -rp "Copy this key to the server now? [y/N] " yn
+  if [[ "$yn" =~ ^[Yy] ]]; then
+    ssh-copy-id -i "${key}.pub" "$remote_host"
+  fi
+  echo "Client setup done."
+}
+
+cmd_setup_server() {
+  echo "=== resolve-sync server setup (run as root or with sudo) ==="
+  read -rp "Restricted username [resolvesync]: " ruser
+  ruser=${ruser:-resolvesync}
+  read -rp "Group name [media]: " group
+  group=${group:-media}
+  read -rp "Existing system users to add to group (space-separated): " users
+  read -rp "Media root path: " media_root
+
+  if ! getent group "$group" >/dev/null; then
+    groupadd "$group"
+    echo "Created group $group"
+  fi
+
+  if ! id "$ruser" >/dev/null 2>&1; then
+    useradd -m -G "$group" -s /usr/sbin/nologin "$ruser" || useradd -m -G "$group" "$ruser"
+    echo "Created user $ruser"
+  else
+    usermod -aG "$group" "$ruser"
+  fi
+
+  for u in $users; do
+    if id "$u" >/dev/null 2>&1; then
+      usermod -aG "$group" "$u"
+      echo "Added $u to group $group"
+    else
+      echo "Warning: user $u does not exist"
+    fi
+  done
+
+  if [[ -d "$media_root" ]]; then
+    chgrp -R "$group" "$media_root"
+    chmod -R g+rwX "$media_root"
+    find "$media_root" -type d -exec chmod g+s {} \;
+    echo "Set group permissions on $media_root"
+  else
+    echo "Warning: $media_root does not exist yet"
+  fi
+
+  # Prepare authorized_keys
+  home=$(getent passwd "$ruser" | cut -d: -f6)
+  mkdir -p "$home/.ssh"
+  touch "$home/.ssh/authorized_keys"
+  chown -R "$ruser:$ruser" "$home/.ssh"
+  chmod 700 "$home/.ssh"
+  chmod 600 "$home/.ssh/authorized_keys"
+  echo "Prepared $home/.ssh/authorized_keys"
+  echo "Server setup done. Add client public keys to authorized_keys."
+}
+
+cmd_new() {
+  local name="${1:-}"
+  if [[ -z "$name" ]]; then
+    echo "Usage: resolve-sync new <ProjectName>" >&2
+    exit 1
+  fi
+  if [[ -z "${SOURCE_ROOT:-}" ]]; then
+    echo "SOURCE_ROOT not set. Run setup first." >&2
+    exit 1
+  fi
+  local dest="${SOURCE_ROOT}/${name}"
+  if [[ -e "$dest" ]]; then
+    echo "Project already exists: $dest" >&2
+    exit 1
+  fi
+  mkdir -p "$SOURCE_ROOT"
+  cp -a "$BANK_DIR" "$dest"
+  echo "Created project: $dest"
+}
+
+cmd_push() {
+  local project="${1:-}"
+  if [[ -z "${SOURCE_ROOT:-}" || -z "${REMOTE_HOST:-}" || -z "${REMOTE_ROOT:-}" ]]; then
+    echo "Config incomplete. Run setup first." >&2
+    exit 1
+  fi
+  if [[ -z "$project" ]]; then
+    echo "Local projects in $SOURCE_ROOT:"
+    ls -1 "$SOURCE_ROOT" 2>/dev/null || echo "(none)"
+    return
+  fi
+  local src="${SOURCE_ROOT}/${project}"
+  local dst="${REMOTE_HOST}:${REMOTE_ROOT}/${project}"
+  echo "Pushing $project → $dst"
+  # Bins proxies only
+  rsync -av --delete \
+    --include='Bins/' --include='Bins/**/' \
+    --include='Bins/**/Proxy/***' \
+    --exclude='Bins/**' \
+    "$src/" "$dst/"
+  # Assists both ways (simple last-write-wins)
+  rsync -av --delete --include='Assists/***' --exclude='*' "$src/" "$dst/"
+  rsync -av --delete --include='Assists/***' --exclude='*' "$dst/" "$src/"
+  # Timeline with backup (simplified)
+  echo "TODO: Timeline dated backup before overwrite"
+  rsync -av --delete --include='Timeline/***' --exclude='*' "$src/" "$dst/"
+  echo "Push done."
+}
+
+cmd_pull() {
+  local project="${1:-}"
+  if [[ -z "${SOURCE_ROOT:-}" || -z "${REMOTE_HOST:-}" || -z "${REMOTE_ROOT:-}" ]]; then
+    echo "Config incomplete. Run setup first." >&2
+    exit 1
+  fi
+  if [[ -z "$project" ]]; then
+    echo "Projects on source ($REMOTE_HOST:$SOURCE_ROOT):"
+    ssh ${SSH_OPTS:-} "$REMOTE_HOST" "ls -1 '$SOURCE_ROOT'" 2>/dev/null || echo "(could not list)"
+    return
+  fi
+  local src="${REMOTE_HOST}:${SOURCE_ROOT}/${project}"
+  local dst="${REMOTE_ROOT}/${project}"
+  echo "Pulling $project ← $src"
+  mkdir -p "$dst"
+  rsync -av --delete \
+    --include='Bins/' --include='Bins/**/' \
+    --include='Bins/**/Proxy/***' \
+    --exclude='Bins/**' \
+    "$src/" "$dst/"
+  rsync -av --delete --include='Assists/***' --exclude='*' "$src/" "$dst/"
+  echo "Pull done."
+}
+
 case "${1:-}" in
-  setup)
-    echo "TODO: interactive client setup"
-    ;;
-  setup-server)
-    echo "TODO: create restricted media user, set permissions, prepare authorized_keys"
-    ;;
-  new)
-    echo "TODO: create project ${2:-<name>} from bank/"
-    ;;
-  push)
-    echo "TODO: push ${2:-all}"
-    ;;
-  pull)
-    echo "TODO: pull ${2:-list}"
-    ;;
-  help|""|-h|--help)
-    usage
-    ;;
+  setup)        cmd_setup ;;
+  setup-server) cmd_setup_server ;;
+  new)          cmd_new "${2:-}" ;;
+  push)         cmd_push "${2:-}" ;;
+  pull)         cmd_pull "${2:-}" ;;
+  help|""|-h|--help) usage ;;
   *)
     echo "Unknown command: $1" >&2
     usage
