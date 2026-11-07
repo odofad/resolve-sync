@@ -34,10 +34,20 @@ A `bank/` template folder (in the repo) can be copied and renamed to start a new
 
 ## Commands
 
-- `resolve-sync setup` — interactive setup + SSH key install
+- `resolve-sync setup` — interactive client setup + SSH key install
+- `resolve-sync setup-server` — prepare the restricted media user on the server
 - `resolve-sync new "ProjectName"` — create a new project from the bank template
 - `resolve-sync push [ProjectName]` — push from source
 - `resolve-sync pull [ProjectName]` — pull on remote
+
+## Server user
+
+`setup-server` creates a dedicated restricted user (e.g. `resolvesync`) that:
+- Owns only the media root (`REMOTE_ROOT`)
+- Has no full shell login (rsync-only or restricted)
+- Accepts client SSH keys in its `authorized_keys`
+
+Clients connect as that user. Multiple editors can share the same user (different keys) or each get their own restricted user.
 
 ## Config
 
@@ -46,7 +56,7 @@ Sidecar file (`~/.resolve-sync.conf`):
 ```
 SOURCE_ROOT=/path/to/MasterFolder
 REMOTE_ROOT=/path/to/RemoteFolder
-REMOTE_HOST=user@server
+REMOTE_HOST=resolvesync@server
 SSH_OPTS=-o BatchMode=yes
 ```
 
@@ -69,3 +79,4 @@ Proxy naming follows Resolve standard: `sourcefolder/Proxy/ClipName.mov`
 - All paths/host in sidecar config.
 - Assists is last-write-wins.
 - Numbered folders under Assists are optional suggestions.
+- Server access is via a dedicated restricted user.
