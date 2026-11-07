@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+VERSION="0.2.0"
+
 # Config: prefer XDG, fall back to legacy location
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 CONFIG_NEW="${XDG_CONFIG_HOME}/resolve-sync/config"
@@ -38,7 +40,7 @@ require_config() {
 
 usage() {
   cat <<EOF
-resolve-sync — sync DaVinci Resolve project mags
+resolve-sync $VERSION — sync DaVinci Resolve project mags
 
 USAGE
   resolve-sync <command> [args]
