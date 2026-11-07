@@ -22,6 +22,7 @@ Commands:
   new <ProjectName>  Create a new project from the bank template
   push [Project]     Push project(s) from source to server
   pull [Project]     Pull project(s) on the remote
+  test               Built-in self-test (config, bank, SSH)
   help               Show this help
 EOF
 }
@@ -38,6 +39,67 @@ get_working_host() {
     return
   fi
   echo "${REMOTE_HOST:-}"
+}
+
+cmd_test() {
+  echo "=== resolve-sync self-test ==="
+  local ok=0
+  local fail=0
+
+  # Config
+  if [[ -f "$CONFIG" ]]; then
+    echo "[OK] Config file exists: $CONFIG"
+    ((ok++))
+  else
+    echo "[FAIL] Config file missing. Run: resolve-sync setup"
+    ((fail++))
+  fi
+
+  if [[ -n "${SOURCE_ROOT:-}" && -d "$SOURCE_ROOT" ]]; then
+    echo "[OK] SOURCE_ROOT exists: $SOURCE_ROOT"
+    ((ok++))
+  else
+    echo "[FAIL] SOURCE_ROOT missing or not a directory"
+    ((fail++))
+  fi
+
+  if [[ -n "${REMOTE_HOST:-}" ]]; then
+    echo "[OK] REMOTE_HOST set: $REMOTE_HOST"
+    ((ok++))
+  else
+    echo "[FAIL] REMOTE_HOST not set"
+    ((fail++))
+  fi
+
+  # Bank template
+  if [[ -d "$BANK_DIR/Assists" && -d "$BANK_DIR/Bins" && -d "$BANK_DIR/Timeline" ]]; then
+    echo "[OK] Bank template present"
+    ((ok++))
+  else
+    echo "[FAIL] Bank template incomplete at $BANK_DIR"
+    ((fail++))
+  fi
+
+  # SSH
+  local host
+  host=$(get_working_host)
+  if [[ -n "$host" ]] && ssh -o BatchMode=yes -o ConnectTimeout=5 "$host" true 2>/dev/null; then
+    echo "[OK] SSH to $host works"
+    ((ok++))
+  else
+    echo "[FAIL] SSH to ${REMOTE_HOST:-?} failed (backup: ${REMOTE_HOST_BACKUP:-none})"
+    ((fail++))
+  fi
+
+  echo
+  echo "Results: $ok passed, $fail failed"
+  if [[ $fail -eq 0 ]]; then
+    echo "All basic checks passed."
+    return 0
+  else
+    echo "Some checks failed."
+    return 1
+  fi
 }
 
 cmd_setup() {
@@ -223,6 +285,7 @@ case "${1:-}" in
   new)          cmd_new "${2:-}" ;;
   push)         cmd_push "${2:-}" ;;
   pull)         cmd_pull "${2:-}" ;;
+  test)         cmd_test ;;
   help|""|-h|--help) usage ;;
   *)
     echo "Unknown command: $1" >&2
