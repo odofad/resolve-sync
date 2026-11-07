@@ -18,6 +18,7 @@ Usage: resolve-sync <command> [args]
 
 Commands:
   setup              Interactive setup and SSH key install
+  new <ProjectName>  Create a new project from the bank template
   push [Project]     Push project(s) from source to server
   pull [Project]     Pull project(s) on the remote
   help               Show this help
@@ -27,6 +28,9 @@ EOF
 case "${1:-}" in
   setup)
     echo "TODO: interactive setup"
+    ;;
+  new)
+    echo "TODO: create project ${2:-<name>} from bank/"
     ;;
   push)
     echo "TODO: push ${2:-all}"
