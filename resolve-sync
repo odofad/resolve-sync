@@ -71,7 +71,15 @@ EOF
   echo
   read -rp "Copy this key to the server now? [y/N] " yn
   if [[ "$yn" =~ ^[Yy] ]]; then
-    ssh-copy-id -i "${key}.pub" "$remote_host"
+    if ! ssh-copy-id -i "${key}.pub" "$remote_host"; then
+      echo
+      echo "ssh-copy-id failed."
+      echo "If you see 'This account is currently not available', the server user"
+      echo "still has a nologin shell. On the server run:"
+      echo "  sudo usermod -s /bin/bash resolvesync"
+      echo "Then re-run this setup."
+      exit 1
+    fi
   fi
   echo "Client setup done."
 }
@@ -96,6 +104,7 @@ cmd_setup_server() {
   else
     usermod -aG "$group" "$ruser"
     usermod -s /bin/bash "$ruser"
+    echo "Updated user $ruser (shell forced to /bin/bash)"
   fi
 
   for u in $users; do
@@ -124,9 +133,11 @@ cmd_setup_server() {
   chmod 700 "$home/.ssh"
   chmod 600 "$home/.ssh/authorized_keys"
   echo "Prepared $home/.ssh/authorized_keys"
-  echo "Server setup done. Add client public keys to authorized_keys."
-  echo "Tip: set a temporary password with 'sudo passwd $ruser' so the first ssh-copy-id can succeed, then lock it with 'sudo passwd -l $ruser'."
-  echo "You can later restrict the account with ForceCommand or change the shell back to nologin once keys are installed."
+  echo "Server setup done."
+  echo "Next: set a temporary password so the client can install its key:"
+  echo "  sudo passwd $ruser"
+  echo "After the client key is installed you can lock the password:"
+  echo "  sudo passwd -l $ruser"
 }
 
 cmd_new() {
