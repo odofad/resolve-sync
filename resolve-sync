@@ -12,21 +12,65 @@ if [[ -f "$CONFIG" ]]; then
   source "$CONFIG"
 fi
 
+require_config() {
+  if [[ ! -f "$CONFIG" || -z "${SOURCE_ROOT:-}" || -z "${REMOTE_HOST:-}" || -z "${REMOTE_ROOT:-}" ]]; then
+    echo "No configuration found." >&2
+    echo "Run: resolve-sync setup" >&2
+    exit 1
+  fi
+}
+
 usage() {
   cat <<EOF
-Usage: resolve-sync <command> [args]
+resolve-sync — sync DaVinci Resolve project mags
 
-Commands:
-  setup              Interactive client setup and SSH key install
-  setup-server       Prepare the restricted media user on the server
-  new <ProjectName>  Create a new project from the bank template
-  push [Project]     Push project(s) from source to server
+USAGE
+  resolve-sync <command> [args]
+
+COMMANDS
+  setup
+      Interactive client setup. Writes ~/.resolve-sync.conf and optionally
+      installs an SSH key on the server.
+
+  setup-server
+      Prepare the restricted media user and group on the server
+      (run as root or with sudo). Does not own the media folders.
+
+  new <ProjectName>
+      Create a new project from the bank template.
+
+  push [Project]
+      With no argument, list local valid projects.
+      With a name, push Bins proxies + Assists to the server.
+
   pull [Project] [--originals]
-                     Pull project(s). Default is proxies only.
-                     --originals pulls the full Bins (raws + proxies).
-  delete <Project>   Delete a project from the client (prompts to sync first)
-  test               Built-in self-test (config, bank, SSH)
-  help               Show this help
+      With no argument, list valid projects on the server.
+      With a name, pull proxies (default) or full Bins (--originals)
+      plus Assists.
+
+  delete <Project>
+      Delete a project from the client only. Prompts to sync back first.
+
+  test
+      Self-test: config, paths, bank template, SSH.
+
+  help, --help, -h
+      Show this manual.
+
+CONFIG
+  ~/.resolve-sync.conf (created by setup)
+
+    SOURCE_ROOT=/path/to/local/MasterFolder
+    REMOTE_ROOT=/path/to/server/media
+    REMOTE_HOST=resolvesync@server
+    REMOTE_HOST_BACKUP=resolvesync@vpn-server   # optional
+    SSH_OPTS="-o BatchMode=yes"
+
+NOTES
+  - Server holds the raws. Clients receive proxies by default.
+  - A valid project has both Bins/ and Assists/ at the top level.
+  - Timeline backups and advanced options are still TODO.
+
 EOF
 }
 
@@ -219,13 +263,10 @@ cmd_setup_server() {
 }
 
 cmd_new() {
+  require_config
   local name="${1:-}"
   if [[ -z "$name" ]]; then
     echo "Usage: resolve-sync new <ProjectName>" >&2
-    exit 1
-  fi
-  if [[ -z "${SOURCE_ROOT:-}" ]]; then
-    echo "SOURCE_ROOT not set. Run setup first." >&2
     exit 1
   fi
   local dest="${SOURCE_ROOT}/${name}"
@@ -248,11 +289,8 @@ BINS_FILTER=(
 )
 
 cmd_push() {
+  require_config
   local project="${1:-}"
-  if [[ -z "${SOURCE_ROOT:-}" || -z "${REMOTE_HOST:-}" || -z "${REMOTE_ROOT:-}" ]]; then
-    echo "Config incomplete. Run setup first." >&2
-    exit 1
-  fi
   local host
   host=$(get_working_host)
   if [[ -z "$project" ]]; then
@@ -279,6 +317,7 @@ cmd_push() {
 }
 
 cmd_pull() {
+  require_config
   local project=""
   local originals=0
   # Parse args: pull [Project] [--originals]
@@ -290,10 +329,6 @@ cmd_pull() {
     shift
   done
 
-  if [[ -z "${SOURCE_ROOT:-}" || -z "${REMOTE_HOST:-}" || -z "${REMOTE_ROOT:-}" ]]; then
-    echo "Config incomplete. Run setup first." >&2
-    exit 1
-  fi
   local host
   host=$(get_working_host)
   if [[ -z "$project" ]]; then
@@ -321,13 +356,10 @@ cmd_pull() {
 }
 
 cmd_delete() {
+  require_config
   local project="${1:-}"
   if [[ -z "$project" ]]; then
     echo "Usage: resolve-sync delete <ProjectName>" >&2
-    exit 1
-  fi
-  if [[ -z "${SOURCE_ROOT:-}" ]]; then
-    echo "SOURCE_ROOT not set." >&2
     exit 1
   fi
   local path="${SOURCE_ROOT}/${project}"
