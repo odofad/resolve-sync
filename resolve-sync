@@ -222,6 +222,15 @@ cmd_new() {
   echo "Created project: $dest"
 }
 
+# Shared rsync filter for Bins: only Proxy/*.mov
+BINS_FILTER=(
+  --include='Bins/'
+  --include='Bins/**/'
+  --include='Bins/**/Proxy/'
+  --include='Bins/**/Proxy/*.mov'
+  --exclude='Bins/**'
+)
+
 cmd_push() {
   local project="${1:-}"
   if [[ -z "${SOURCE_ROOT:-}" || -z "${REMOTE_HOST:-}" || -z "${REMOTE_ROOT:-}" ]]; then
@@ -239,11 +248,7 @@ cmd_push() {
   local dst="${host}:${REMOTE_ROOT}/${project}"
   echo "Pushing $project → $dst"
   # Bins proxies only
-  rsync -av --delete \
-    --include='Bins/' --include='Bins/**/' \
-    --include='Bins/**/Proxy/***' \
-    --exclude='Bins/**' \
-    "$src/" "$dst/"
+  rsync -av --delete "${BINS_FILTER[@]}" "$src/" "$dst/"
   # Assists both ways (simple last-write-wins)
   rsync -av --delete --include='Assists/***' --exclude='*' "$src/" "$dst/"
   rsync -av --delete --include='Assists/***' --exclude='*' "$dst/" "$src/"
@@ -270,11 +275,7 @@ cmd_pull() {
   local dst="${REMOTE_ROOT}/${project}"
   echo "Pulling $project ← $src"
   mkdir -p "$dst"
-  rsync -av --delete \
-    --include='Bins/' --include='Bins/**/' \
-    --include='Bins/**/Proxy/***' \
-    --exclude='Bins/**' \
-    "$src/" "$dst/"
+  rsync -av --delete "${BINS_FILTER[@]}" "$src/" "$dst/"
   rsync -av --delete --include='Assists/***' --exclude='*' "$src/" "$dst/"
   echo "Pull done."
 }
