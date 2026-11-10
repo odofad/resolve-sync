@@ -363,6 +363,13 @@ BINS_FILTER=(
   --exclude='Bins/**'
 )
 
+# Assists: everything under Assists/
+ASSISTS_FILTER=(
+  --include='Assists/'
+  --include='Assists/**'
+  --exclude='*'
+)
+
 cmd_push() {
   require_config
   local project="${1:-}"
@@ -383,11 +390,11 @@ cmd_push() {
   # Bins proxies only
   rsync -av --delete "${BINS_FILTER[@]}" "$src/" "$dst/"
   # Assists both ways (simple last-write-wins)
-  rsync -av --delete --include='Assists/***' --exclude='*' "$src/" "$dst/"
-  rsync -av --delete --include='Assists/***' --exclude='*' "$dst/" "$src/"
+  rsync -av --delete "${ASSISTS_FILTER[@]}" "$src/" "$dst/"
+  rsync -av --delete "${ASSISTS_FILTER[@]}" "$dst/" "$src/"
   # Timeline with backup (simplified)
   echo "TODO: Timeline dated backup before overwrite"
-  rsync -av --delete --include='Timeline/***' --exclude='*' "$src/" "$dst/"
+  rsync -av --delete --include='Timeline/' --include='Timeline/**' --exclude='*' "$src/" "$dst/"
   echo "Push done."
 }
 
@@ -422,11 +429,12 @@ cmd_pull() {
   mkdir -p "$dst"
   if [[ $originals -eq 1 ]]; then
     echo "(including full Bins / originals)"
-    rsync -av --delete --include='Bins/***' --exclude='*' "$src/" "$dst/"
+    rsync -av --delete --include='Bins/' --include='Bins/**' --exclude='*' "$src/" "$dst/"
   else
     rsync -av --delete "${BINS_FILTER[@]}" "$src/" "$dst/"
   fi
-  rsync -av --delete --include='Assists/***' --exclude='*' "$src/" "$dst/"
+  # Assists always
+  rsync -av --delete "${ASSISTS_FILTER[@]}" "$src/" "$dst/"
   echo "Pull done."
 }
 
