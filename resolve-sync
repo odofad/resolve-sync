@@ -237,15 +237,15 @@ cmd_update() {
 
 cmd_setup() {
   echo "=== resolve-sync client setup ==="
-  read -rp "Remote host (user@host) [resolvesync@]: " remote_host
+  read -erp "Remote host (user@host) [resolvesync@]: " remote_host
   remote_host=${remote_host:-resolvesync@}
   # If user only typed a hostname, prepend the default user
   if [[ "$remote_host" != *@* ]]; then
     remote_host="resolvesync@${remote_host}"
   fi
-  read -rp "Backup host (optional, VPN): " remote_host_backup
-  read -rp "Source root (local MasterFolder): " source_root
-  read -rp "Remote root (server media folder): " remote_root
+  read -erp "Backup host (optional, VPN): " remote_host_backup
+  read -erp "Source root (local MasterFolder): " source_root
+  read -erp "Remote root (server media folder): " remote_root
 
   # Always write to the new XDG location
   CONFIG="$CONFIG_NEW"
@@ -266,7 +266,7 @@ EOF
   echo "Public key:"
   cat "${key}.pub"
   echo
-  read -rp "Copy this key to the server now? [y/N] " yn
+  read -erp "Copy this key to the server now? [y/N] " yn
   if [[ "$yn" =~ ^[Yy] ]]; then
     if ! ssh-copy-id -i "${key}.pub" "$remote_host"; then
       echo
@@ -283,12 +283,12 @@ EOF
 
 cmd_setup_server() {
   echo "=== resolve-sync server setup (run as root or with sudo) ==="
-  read -rp "Restricted username [resolvesync]: " ruser
+  read -erp "Restricted username [resolvesync]: " ruser
   ruser=${ruser:-resolvesync}
-  read -rp "Group name [media]: " group
+  read -erp "Group name [media]: " group
   group=${group:-media}
-  read -rp "Existing system users to add to group (space-separated): " users
-  read -rp "Media root path: " media_root
+  read -erp "Existing system users to add to group (space-separated): " users
+  read -erp "Media root path: " media_root
 
   if ! getent group "$group" >/dev/null; then
     groupadd "$group"
@@ -442,11 +442,11 @@ cmd_delete() {
     echo "Not a valid project (missing Bins/ or Assists/): $path" >&2
     exit 1
   fi
-  read -rp "Sync $project back to server before deleting? [Y/n] " yn
+  read -erp "Sync $project back to server before deleting? [Y/n] " yn
   if [[ ! "$yn" =~ ^[Nn] ]]; then
     cmd_push "$project"
   fi
-  read -rp "Delete $path from client? [y/N] " confirm
+  read -erp "Delete $path from client? [y/N] " confirm
   if [[ "$confirm" =~ ^[Yy] ]]; then
     rm -rf "$path"
     echo "Deleted $path"
