@@ -98,10 +98,14 @@ Proxy naming follows the Resolve standard: `sourcefolder/Proxy/ClipName.mov`.
 
 - Creates a restricted user (default `resolvesync`)
 - Creates a group (default `media`) and adds existing users to it
+- Detects (or asks for) the media owner user
 - Sets group permissions on the media root (setgid, no ownership takeover)
+- Installs a permission watcher that runs as the media owner
 - Prepares `~/.ssh/authorized_keys`
 
-Clients connect as that user. The main system users still own the media folders.
+The watcher uses `inotifywait` to fix group permissions whenever files are created or changed (including via SMB from Mac/Windows). It runs as the media owner user — no root required after setup.
+
+Clients connect as the restricted user. The main system users still own the media folders.
 
 ## Host failover
 
@@ -116,27 +120,23 @@ If `REMOTE_HOST_BACKUP` is set, the script tries the primary host first, then fa
 
 ### Permission denied on push/pull (rsync code 23)
 
-The restricted `resolvesync` user must be able to read and write inside the media root. If you see:
+If the watcher is running, this should be rare. If you still see:
 
 ```
 rsync: [generator] delete_file: unlink(...) failed: Permission denied (13)
-rsync: [generator] recv_generator: mkdir(...) failed: Permission denied (13)
-rsync: [sender] send_files failed to open (...): Permission denied (13)
 ```
 
-the group permissions are incomplete. On the server, run:
+check that the watcher is active:
 
 ```bash
-MEDIA=/path/to/REMOTE_ROOT
-sudo chgrp -R media "$MEDIA"
-sudo chmod -R g+rwX "$MEDIA"
-sudo find "$MEDIA" -type d -exec chmod g+s {} \;
-# Optional but recommended — default ACL so new files inherit group write
-sudo setfacl -R -m g:media:rwX "$MEDIA"
-sudo setfacl -R -d -m g:media:rwX "$MEDIA"
+systemctl status resolve-sync-watch
 ```
 
-`setup-server` sets the initial group and setgid bit, but files created later by other users (or by Resolve) can end up with permissions that block `resolvesync`. The ACL above makes this more reliable. This is a known limitation; a future version may add a `fix-perms` command.
+You can also fix a project manually:
+
+```bash
+sudo -u <media-owner> /usr/local/bin/resolve-sync-fix-perms /path/to/project
+```
 
 ## Decisions
 
@@ -147,3 +147,4 @@ sudo setfacl -R -d -m g:media:rwX "$MEDIA"
 - Numbered folders under Assists are optional suggestions.
 - Server access is via a dedicated restricted user + group policy.
 - Clients receive proxies by default. `--originals` pulls the full Bins when needed.
+- Permission fixing is done by a user-level watcher, not by the restricted client.
