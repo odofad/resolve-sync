@@ -1,3 +1,12 @@
+resolve-sync (0.2.0-1) noble; urgency=medium
+
+  * Add permission watcher (inotify) that runs as the media owner.
+  * setup-server installs and enables the watcher service.
+  * Add inotify-tools dependency.
+  * Version 0.2.0.
+
+ -- wium <odofad@gmail.com>  Wed, 18 Nov 2026 22:00:00 +0200
+
 resolve-sync (0.1.0-1) noble; urgency=medium
 
   * Initial release.
