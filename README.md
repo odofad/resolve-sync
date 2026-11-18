@@ -112,6 +112,32 @@ If `REMOTE_HOST_BACKUP` is set, the script tries the primary host first, then fa
 - **Ubuntu (deb):** `sudo apt update && sudo apt upgrade resolve-sync`
 - **macOS / other:** `resolve-sync update` (downloads the latest GitHub release and reinstalls)
 
+## Troubleshooting
+
+### Permission denied on push/pull (rsync code 23)
+
+The restricted `resolvesync` user must be able to read and write inside the media root. If you see:
+
+```
+rsync: [generator] delete_file: unlink(...) failed: Permission denied (13)
+rsync: [generator] recv_generator: mkdir(...) failed: Permission denied (13)
+rsync: [sender] send_files failed to open (...): Permission denied (13)
+```
+
+the group permissions are incomplete. On the server, run:
+
+```bash
+MEDIA=/path/to/REMOTE_ROOT
+sudo chgrp -R media "$MEDIA"
+sudo chmod -R g+rwX "$MEDIA"
+sudo find "$MEDIA" -type d -exec chmod g+s {} \;
+# Optional but recommended — default ACL so new files inherit group write
+sudo setfacl -R -m g:media:rwX "$MEDIA"
+sudo setfacl -R -d -m g:media:rwX "$MEDIA"
+```
+
+`setup-server` sets the initial group and setgid bit, but files created later by other users (or by Resolve) can end up with permissions that block `resolvesync`. The ACL above makes this more reliable. This is a known limitation; a future version may add a `fix-perms` command.
+
 ## Decisions
 
 - Push overwrites (no versioning except Timeline backups). Use ZFS snapshots if you need history.
