@@ -1,0 +1,13 @@
+[Unit]
+Description=resolve-sync permission watcher
+After=network.target
+
+[Service]
+Type=simple
+User=%i
+ExecStart=/usr/local/bin/resolve-sync-watch %h
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
