@@ -293,6 +293,15 @@ cmd_setup_server() {
   read -erp "Existing system users to add to group (space-separated): " users
   read -erp "Media root path: " media_root
 
+  # Detect media owner
+  local detected=""
+  if [[ -d "$media_root" ]]; then
+    detected=$(stat -c '%U' "$media_root" 2>/dev/null || true)
+  fi
+  detected=${detected:-${SUDO_USER:-root}}
+  read -erp "Media owner user (runs the watcher) [$detected]: " media_owner
+  media_owner=${media_owner:-$detected}
+
   if ! getent group "$group" >/dev/null; then
     groupadd "$group"
     echo "Created group $group"
@@ -316,6 +325,11 @@ cmd_setup_server() {
     fi
   done
 
+  # Ensure media owner is in the group
+  if id "$media_owner" >/dev/null 2>&1; then
+    usermod -aG "$group" "$media_owner"
+  fi
+
   if [[ -d "$media_root" ]]; then
     chgrp -R "$group" "$media_root"
     chmod -R g+rwX "$media_root"
@@ -324,6 +338,34 @@ cmd_setup_server() {
   else
     echo "Warning: $media_root does not exist yet"
   fi
+
+  # Install helper and watcher
+  local script_dir
+  script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+  install -m 755 "$script_dir/resolve-sync-fix-perms" /usr/local/bin/resolve-sync-fix-perms
+  install -m 755 "$script_dir/resolve-sync-watch" /usr/local/bin/resolve-sync-watch
+  echo "Installed helper and watcher to /usr/local/bin"
+
+  # Write systemd unit that runs as media_owner
+  cat > /etc/systemd/system/resolve-sync-watch.service <<EOF
+[Unit]
+Description=resolve-sync permission watcher
+After=network.target
+
+[Service]
+Type=simple
+User=$media_owner
+ExecStart=/usr/local/bin/resolve-sync-watch $media_root
+Restart=on-failure
+RestartSec=5
+Environment=RESOLVE_SYNC_GROUP=$group
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  systemctl daemon-reload
+  systemctl enable --now resolve-sync-watch.service
+  echo "Watcher service enabled and started (runs as $media_owner)"
 
   # Prepare authorized_keys
   home=$(getent passwd "$ruser" | cut -d: -f6)
