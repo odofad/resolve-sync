@@ -8,7 +8,7 @@ Homepage: https://github.com/odofad/resolve-sync
 
 Package: resolve-sync
 Architecture: all
-Depends: ${misc:Depends}, rsync, openssh-client
+Depends: ${misc:Depends}, rsync, openssh-client, inotify-tools
 Description: Sync tool for DaVinci Resolve project mags
  Simple rsync-based tool that pushes proxy-only Bins, bidirectional
  Assists, and Timeline backups over SSH for remote Resolve workflows.
