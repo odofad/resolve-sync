@@ -1,2 +1,4 @@
 resolve-sync usr/bin/
+resolve-sync-fix-perms usr/bin/
+resolve-sync-watch usr/bin/
 bank usr/share/resolve-sync/
