@@ -339,12 +339,26 @@ cmd_setup_server() {
     echo "Warning: $media_root does not exist yet"
   fi
 
-  # Install helper and watcher
-  local script_dir
-  script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-  install -m 755 "$script_dir/resolve-sync-fix-perms" /usr/local/bin/resolve-sync-fix-perms
-  install -m 755 "$script_dir/resolve-sync-watch" /usr/local/bin/resolve-sync-watch
-  echo "Installed helper and watcher to /usr/local/bin"
+  # Locate helpers: prefer packaged locations, fall back to next to this script
+  local helper_src="" watch_src=""
+  if [[ -x /usr/bin/resolve-sync-fix-perms ]]; then
+    helper_src=/usr/bin/resolve-sync-fix-perms
+    watch_src=/usr/bin/resolve-sync-watch
+  elif [[ -x /usr/local/bin/resolve-sync-fix-perms ]]; then
+    helper_src=/usr/local/bin/resolve-sync-fix-perms
+    watch_src=/usr/local/bin/resolve-sync-watch
+  else
+    local script_dir
+    script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    helper_src="$script_dir/resolve-sync-fix-perms"
+    watch_src="$script_dir/resolve-sync-watch"
+    # Install into /usr/local/bin for non-deb runs
+    install -m 755 "$helper_src" /usr/local/bin/resolve-sync-fix-perms
+    install -m 755 "$watch_src" /usr/local/bin/resolve-sync-watch
+    helper_src=/usr/local/bin/resolve-sync-fix-perms
+    watch_src=/usr/local/bin/resolve-sync-watch
+    echo "Installed helper and watcher to /usr/local/bin"
+  fi
 
   # Write systemd unit that runs as media_owner
   cat > /etc/systemd/system/resolve-sync-watch.service <<EOF
@@ -355,7 +369,7 @@ After=network.target
 [Service]
 Type=simple
 User=$media_owner
-ExecStart=/usr/local/bin/resolve-sync-watch $media_root
+ExecStart=$watch_src $media_root
 Restart=on-failure
 RestartSec=5
 Environment=RESOLVE_SYNC_GROUP=$group
