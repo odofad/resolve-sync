@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# resolve-sync-watch — watch media root and fix permissions on changes
+
+set -euo pipefail
+
+MEDIA_ROOT="${1:-}"
+if [[ -z "$MEDIA_ROOT" || ! -d "$MEDIA_ROOT" ]]; then
+  echo "Usage: $0 <media-root>" >&2
+  exit 1
+fi
+
+HELPER="/usr/local/bin/resolve-sync-fix-perms"
+if [[ ! -x "$HELPER" ]]; then
+  HELPER="$(dirname "$0")/resolve-sync-fix-perms"
+fi
+
+echo "Watching $MEDIA_ROOT"
+inotifywait -m -r -e create,moved_to,attrib,modify --format '%w%f' "$MEDIA_ROOT" |
+while read -r path; do
+  # Only act on directories or when a parent needs fixing
+  dir=$(dirname "$path")
+  "$HELPER" "$dir" || true
+done
