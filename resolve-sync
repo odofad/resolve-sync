@@ -109,7 +109,7 @@ if [[ -n "${SSH_OPTS:-}" ]]; then
 fi
 
 # Common rsync options: archive, verbose, progress, stats
-RSYNC_OPTS=(-av --info=progress2,stats --delete)
+RSYNC_OPTS=(-av --info=progress2,stats --delete --no-perms --no-times)
 
 # A valid project has Bins/ and Assists/ at the top level
 is_valid_project() {
