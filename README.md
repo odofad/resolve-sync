@@ -34,22 +34,27 @@ A `bank/` template is included. `resolve-sync new` copies it to start a new proj
 
 ## Install
 
-One command works everywhere. On Ubuntu it adds the PPA and installs the deb. Elsewhere it installs the script and bank template to `/usr/local`.
+### Ubuntu (recommended)
 
-```bash
-curl -L -o resolve-sync.zip https://github.com/odofad/resolve-sync/archive/refs/tags/v0.2.0.zip
-unzip resolve-sync.zip
-cd resolve-sync-0.2.0
-chmod +x install.sh
-./install.sh
-```
-
-### Manual Ubuntu (optional)
 ```bash
 sudo add-apt-repository ppa:odofad/stable
 sudo apt update
 sudo apt install resolve-sync
 ```
+
+Packages are built for the active series (currently noble and resolute).
+
+### Other systems / from source
+
+```bash
+curl -L -o resolve-sync.zip https://github.com/odofad/resolve-sync/archive/refs/heads/main.zip
+unzip resolve-sync.zip
+cd resolve-sync-main
+chmod +x install.sh
+./install.sh
+```
+
+(Or use a tagged release zip if you prefer a fixed version.)
 
 ## Commands
 
