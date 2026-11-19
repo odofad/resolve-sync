@@ -5,17 +5,9 @@ set -euo pipefail
 
 VERSION="0.2.0"
 
-# Config: prefer XDG, fall back to legacy location
+# Config location (XDG)
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-CONFIG_NEW="${XDG_CONFIG_HOME}/resolve-sync/config"
-CONFIG_OLD="${HOME}/.resolve-sync.conf"
-if [[ -f "$CONFIG_NEW" ]]; then
-  CONFIG="$CONFIG_NEW"
-elif [[ -f "$CONFIG_OLD" ]]; then
-  CONFIG="$CONFIG_OLD"
-else
-  CONFIG="$CONFIG_NEW"
-fi
+CONFIG="${XDG_CONFIG_HOME}/resolve-sync/config"
 
 # Prefer packaged location, fall back to next to the script (dev)
 if [[ -d /usr/share/resolve-sync/bank ]]; then
@@ -53,8 +45,18 @@ COMMANDS
       installs an SSH key on the server.
 
   setup-server
-      Prepare the restricted media user and group on the server
-      (run as root or with sudo). Does not own the media folders.
+      Prepare the server (run as root or with sudo).
+      Creates a restricted SSH user and a shared group.
+      Does not take ownership of media folders.
+
+      Prompts:
+        Restricted SSH username — account clients SSH as (default: resolvesync)
+        Shared group name       — group that gets r/w on media (default: media)
+        Media root path         — absolute path to media folder
+                                   example: /path/to/media
+        Media owner user        — existing user who owns the media and runs
+                                   the permission watcher
+        Additional users        — optional extra accounts to add to the group
 
   new <ProjectName>
       Create a new project from the bank template.
@@ -76,14 +78,14 @@ COMMANDS
       On macOS downloads the latest release and reinstalls.
 
   test
-      Self-test: config, paths, bank template, SSH.
+      Self-test: config, paths, bank template, SSH,
+      and watcher service (if installed).
 
   help, --help, -h
       Show this manual.
 
 CONFIG
-  Preferred: ~/.config/resolve-sync/config
-  Legacy:    ~/.resolve-sync.conf (still read if present)
+  ~/.config/resolve-sync/config
 
     SOURCE_ROOT=/path/to/local/MasterFolder
     REMOTE_ROOT=/path/to/server/media
@@ -179,6 +181,20 @@ cmd_test() {
     ((fail++))
   fi
 
+  # Watcher service (server only)
+  if systemctl list-unit-files resolve-sync-watch.service >/dev/null 2>&1; then
+    if systemctl is-active --quiet resolve-sync-watch.service; then
+      echo "[OK] Watcher service is running"
+      ((ok++))
+    else
+      echo "[FAIL] Watcher service exists but is not running"
+      echo "       systemctl status resolve-sync-watch"
+      ((fail++))
+    fi
+  else
+    echo "[SKIP] Watcher service not installed (normal on client)"
+  fi
+
   echo
   echo "Results: $ok passed, $fail failed"
   if [[ $fail -eq 0 ]]; then
@@ -250,8 +266,7 @@ cmd_setup() {
   read -erp "Source root (local MasterFolder): " source_root
   read -erp "Remote root (server media folder): " remote_root
 
-  # Always write to the new XDG location
-  CONFIG="$CONFIG_NEW"
+  # Write config
   mkdir -p "$(dirname "$CONFIG")"
   cat > "$CONFIG" <<EOF
 SOURCE_ROOT=${source_root}
@@ -286,12 +301,29 @@ EOF
 
 cmd_setup_server() {
   echo "=== resolve-sync server setup (run as root or with sudo) ==="
-  read -erp "Restricted username [resolvesync]: " ruser
+  echo
+  echo "This sets up a restricted SSH account for clients and a shared group"
+  echo "so the real media owner keeps full access. It does not take ownership."
+  echo
+
+  echo "Restricted SSH username"
+  echo "  The account clients will SSH as. It only needs access to the media"
+  echo "  folder via the shared group. Default is fine for most setups."
+  read -erp "  Username [resolvesync]: " ruser
   ruser=${ruser:-resolvesync}
-  read -erp "Group name [media]: " group
+
+  echo
+  echo "Shared group name"
+  echo "  Group that gets read/write on the media folder. Both the restricted"
+  echo "  user and the media owner are added to it."
+  read -erp "  Group [media]: " group
   group=${group:-media}
-  read -erp "Existing system users to add to group (space-separated): " users
-  read -erp "Media root path: " media_root
+
+  echo
+  echo "Media root path"
+  echo "  Absolute path to the folder that holds all project mags."
+  echo "  Example: /path/to/media"
+  read -erp "  Path: " media_root
 
   # Detect media owner
   local detected=""
@@ -299,8 +331,24 @@ cmd_setup_server() {
     detected=$(stat -c '%U' "$media_root" 2>/dev/null || true)
   fi
   detected=${detected:-${SUDO_USER:-root}}
-  read -erp "Media owner user (runs the watcher) [$detected]: " media_owner
+
+  echo
+  echo "Media owner user"
+  echo "  The existing account that owns the media folders and will run the"
+  echo "  permission watcher. Usually the same user you log in as."
+  read -erp "  Owner [$detected]: " media_owner
   media_owner=${media_owner:-$detected}
+
+  echo
+  echo "Additional users"
+  echo "  Optional. Add other existing accounts to the shared group if they"
+  echo "  also need direct access to the media folder."
+  read -erp "  Add more users? [y/N] " add_more
+  local users=""
+  if [[ "$add_more" =~ ^[Yy] ]]; then
+    echo "  Enter usernames separated by spaces (example: editor1 editor2)"
+    read -erp "  Users: " users
+  fi
 
   if ! getent group "$group" >/dev/null; then
     groupadd "$group"
